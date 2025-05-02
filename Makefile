@@ -1,7 +1,7 @@
 file=poster_landscape
 ALL: clean ${file}.pdf 
 %.pdf: %.tex Makefile
-	pdflatex --enable-write18 $< &&	pdflatex $< && pdflatex $<
+	xelatex --enable-write18 $< &&	xelatex $< && xelatex $<
 
 show: 
 	  xdg-open ${file}.pdf
