@@ -1,9 +1,8 @@
 %!TEX TS-program = xelatex
 %!TEX encoding = UTF-8 Unicode
-\documentclass[landscape,a1paper,fontscale=0.42]{baposter}
+\documentclass[portrait,a1paper,fontscale=0.42]{baposter}
 
 \usepackage[vlined]{algorithm2e}
-\usepackage{times}
 \usepackage{calc}
 \usepackage{url}
 \usepackage{graphicx}
@@ -12,6 +11,10 @@
 \usepackage{relsize}
 \usepackage{multirow}
 \usepackage{booktabs}
+\usepackage{fontawesome5}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{xspace}
 
 \usepackage{graphicx}
 \usepackage{multicol}
@@ -45,12 +48,12 @@
 % \setlength{\parskip}{0pt}%
 % \setlength{\parsep}{0pt}%
 % }
-\renewcommand{\rmdefault}{ptm} % Arial
-\renewcommand{\sfdefault}{ptm} % Arial
+\renewcommand{\rmdefault}{ptm}
+\renewcommand{\sfdefault}{ptm}
 
 \newcommand{\Sys}{\textsc{Opera}\xspace}
 \newcommand{\Cache}{\textsc{HomCache}\xspace}
-
+\definecolor{highlight}{RGB}{190,0,32}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Begin of Document
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -63,7 +66,7 @@
 \begin{poster}{
     % Show grid to help with alignment
     grid=false,
-    columns=5,
+    columns=6,
     % Column spacing
     colspacing=0.7em,
     % Color style
@@ -77,9 +80,9 @@
     headershade=plain,
     background=none,
     bgColorOne=cyan!10!white,
-    headerheight=0.13\textheight
+    headerheight=0.10\textheight
 }
-% Eye Catcher
+% University logo
 {
     \makebox[0.01\textwidth]{}
     \includegraphics[width=0.05\linewidth]{logo/HKU_logo}
@@ -91,7 +94,7 @@
     \huge\bf \Sys{}: Achieving Secure and High-performance OLAP with Parallelized Homomorphic Comparisons
 }
 % Authors
-{
+{\normalsize
     \vspace{0.3em}
         Qi Hu$^{1\dagger}$ \enspace
         Wei Chen$^{1\dagger}$ \enspace
@@ -100,10 +103,10 @@
         Nicholas Zhang$^{2}$ \enspace
         Heming Cui$^{1*}$ \enspace
         Siu-Ming Yiu$^{1}$ \\
-    {$^{1}$The University of Hong Kong \enspace$^{2}$Huawei Technologies Co., Ltd.} \\
+    {\normalsize $^{1}$The University of Hong Kong \enspace$^{2}$Huawei Technologies Co., Ltd.} \\
     {\normalsize $^\dagger$Equal contribution. $^*$Co-corresponding authors.}
 }
-% University logo
+% Conference logo
 {
     \includegraphics[width=0.08\linewidth]{logo/trojan.png}
     \makebox[0.01\textwidth]{}
@@ -121,20 +124,202 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\headerbox{\bf\color{blue} Problem Definition and Contribution}{name=contribution,column=0,row=0,span=2}{
-    
+\headerbox{\bf\color{blue} Motivation and Insights}{name=motivation,column=0,row=0,span=3}{
+    \begin{itemize}
+        \item \textbf{Motivation:} FHE-based OLAP: {\textbf{strong security}},
+        {\textbf{compromised performance}}
+        \item \textbf{\textit{Insight I: Multiple HomComps degrade performance}}
+        \begin{itemize}
+            \item HomComp required for each record-predicate pair
+            \item E.g., $N$ records with $M$ predicates = $N\times M$ comparisons
+            \item 90\%+ of the query execution time spent on HomComp
+        \end{itemize}
+        \begin{center}
+            \includegraphics[width=0.85\linewidth]{insight1.pdf}
+        \end{center}
+        
+        \item \textbf{\textit{Insight II: Only part of the system can be parallelized}}
+        \begin{itemize}
+            \item Inter-parallelism: HomComps executed in parallel (Layer 2)
+            \item Inner-parallelism: FHE operations can be parallelized (Layer 0)
+            \item HomComp requires sequential FHE operations (Layer 1)
+        \end{itemize}
+        \begin{center}
+            \includegraphics[width=0.95\linewidth]{insight2.pdf}
+        \end{center}
+    \end{itemize}
+    \textcolor{orange}{\faLightbulb} \; \textbf{Simply migrating the system from CPU to GPU is not enough.}
 }
 
-\headerbox{\bf\color{blue} Problem Formulation}{name=formulation,column=0,below=contribution,span=2}{
-    
+
+\headerbox{\bf\color{blue} Contributions}{name=contribution,column=3,row=0,span=3}{
+    \begin{center}
+        \includegraphics[width=0.94\linewidth]{overview.pdf}
+    \end{center}
+
+    \textcolor{orange}{\faLightbulb} \; \textbf{\Sys: The First GPU-Accelerated FHE-based OLAP System}
+    \vspace{1em}
+    \begin{itemize}
+        \item \textbf{\textit{Architecture Innovation}}
+        \begin{itemize}
+            \item Comprehensive bottleneck analysis of FHE-based OLAP systems
+            \item \underline{\textit{HomCache-driven Secure Comparison}} enabling full parallelization
+            \item Novel \underline{\textit{Density-driven Cache Eviction (DDE) Strategy}} outperforming traditional approaches (e.g., LRU)
+        \end{itemize}
+        \vspace{0.5em}
+        \item \textbf{\textit{Performance Highlights}}
+        \begin{itemize}
+            \item \textbf{Efficient:} $1064\times$ speedup in HomComps, $9612\times$ lower query latency
+            \item \textbf{Stable:} Consistent performance across diverse workloads
+            \item \textbf{Scalable:} Minimal latency impact with increased record size and precision
+        \end{itemize}
+    \end{itemize}
 }
 
-\headerbox{\bf\color{blue} Method}{name=abstract,column=0,below=formulation,span=2}{
-    
+\headerbox{\bf\color{blue} \Cache-driven Secure Comparison}{name=homcache,column=0,below=motivation,span=3}{
+    \begin{itemize}
+        \item \textbf{Key Insight:} Sequential steps in HomComp are determined by \textcolor{highlight}{\textbf{\textit{data precision}}}
+        \vspace{0.5em}
+        \item \textbf{\textit{Phase 1: Partial Homomorphic Comparison (PHC)}}
+        \begin{itemize}
+            \item Reduces redundant iterations by focusing on essential bits
+            \begin{enumerate}[leftmargin=0em, itemindent=0em]
+                \item Determines position of \textbf{\textit{PMSB (Partial MSB)}}, with numerical distance $epi$
+                \item Converts \textit{high-precision data} to \textit{low-precision} format ($< 2^{epi}$)
+                \item Extracts \textit{PMSB} from \textit{low-precision} values for efficient comparison
+            \end{enumerate}
+        \end{itemize}
+        \item \textcolor{highlight}{\textbf{\textit{Challenge:}}} Cannot control user data precision, causes potential \textcolor{highlight}{\textbf{\textit{overflow risks}}}
+        \begin{center}
+            \includegraphics[width=0.9\linewidth]{homecache1.pdf}
+        \end{center}
+
+        \item \textit{\textbf{Phase 2: Zone-based Hierarchical Correction} (Addresses overflow risk)}
+        \begin{itemize}
+            \item Partitions comparison space into three regions using optimal (cached) filters:
+            \begin{itemize}[leftmargin=0em, itemindent=0em]
+                \item \textcolor{gray}{\textbf{Gray Zone:}} PHC results are accurate (no corrections needed)
+                \item \textcolor{red}{\textbf{Red Zone:}} May contain \textcolor{highlight}{\textbf{\textit{false positives}}} result, \textcolor{highlight}{\textbf{\textit{AND}}} operation to excluded
+                \item \textcolor{green}{\textbf{Green Zone:}} May contain \textcolor{highlight}{\textbf{\textit{false negatives}}} result, \textcolor{highlight}{\textbf{\textit{OR}}} operation to included
+            \end{itemize}
+        \end{itemize}
+        \begin{center}
+            \includegraphics[width=0.9\linewidth]{homecache2.pdf}
+        \end{center}
+    \end{itemize}
+    \textcolor{orange}{\faLightbulb} \;
+        \textbf{\textit{Fast HomComp (FHC)} = \textit{PHC} + \textit{Zone-based Hierarchical Correction}}
+
 }
+
+\headerbox{\bf\color{blue} \Cache{} Eviction with Density Modeling}{name=dde,column=3,below=motivation,span=3}{
+    \textbf{\textit{Density-Aware Cache Eviction Challenge}}
+    \begin{itemize}
+        \item Cache (\textit{optimal filter}) size \textcolor{highlight}{\textbf{\textit{grows linearly}}} $\Rightarrow$ Eviction strategy needed
+        \item Traditional strategy (e.g. LRU) results in performance deterioration
+        \begin{itemize}
+            \item Not considering \textcolor{highlight}{\textbf{\textit{numerical distance}}} (\textit{density})
+            \item Density significantly affects performance of \textit{FHC} algorithm
+        \end{itemize}
+    \end{itemize}
+
+    \vspace{0.5em}
+    \textbf{\textit{Performance-Driven Eviction Solution}}
+    \begin{itemize}
+        \item \textit{Density-driven Cache Eviction (DDE)} Strategy
+        \item Model performance gains for each cached filter based on:
+        \begin{itemize}
+            \item Frequency of direct hit (accuracy rate $a$)
+            \item Frequency of use in correction step (usage rate $u$)
+            \item \textcolor{highlight}{\textbf{\textit{Density of the filter}}} (density $d$)
+        \end{itemize}
+        \vspace{0.5em}
+        \item Formalized as a convex optimization problem:
+        \begin{itemize}
+            \item $R(i)$: Decrease in benefit if filter $i$ is removed
+            \item $I(i,j)$: Increase in benefit if filter $j$ is inserted after filter $i$
+            \item Filter $k$ will be evicted if: 
+            $$ k = \underset{m \in \text{HomCache}}{\arg\min}\ R(m) \wedge R(k) < I(i,j) $$
+        \end{itemize}
+    \end{itemize}
+
+    \begin{center}
+        \begin{minipage}[c]{0.53\textwidth}\vspace{0pt}
+            \centering
+            \includegraphics[width=\linewidth]{density-model.pdf}
+        \end{minipage}%
+        \begin{minipage}[c]{0.45\textwidth}\vspace{0pt}
+            \scriptsize
+            \begin{equation*}
+            \begin{aligned}
+                R(i)   &= B_{corr}^{before}(i)-B_{corr}^{after}(i)\\
+                       &+ B_{hit}(i) \\
+                I(i,j) &= \hat{B}_{corr}^{after}(i,j) - u_i(D_{ori}-D_i)\\
+                       &+ \hat{B}_{hit}(j)
+            \end{aligned}
+            \end{equation*}
+        \end{minipage}
+    \end{center}    
+
+    \textcolor{orange}{\faLightbulb} \;
+        \textbf{\textit{Detailed equations are provided in the paper \S 4.3}.}
+}
+
 %
-\headerbox{\bf\color{blue} Experiments \& Results}{name=results,column=2,row=0,span=3}{
-    
+\headerbox{\bf\color{blue} Implementation}{name=implement,column=0,below=homcache,span=2}{
+    \textbf{\textit{Encryption Schemes}}
+    \begin{itemize}
+        \item \textbf{\textit{CKKS}}: Phantom$^{\text{[TDSC'24]}}$ for GPU acceleration
+        \item \textbf{\textit{TFHE}}: Custom GPU version of TFHEpp
+    \end{itemize}
+    \vspace{0.5em}
+    \textbf{\textit{GPU Optimizations}}
+    \begin{itemize}
+        \item Kernel fusion to reduce memory transfer overhead
+        \item Multi-dimensional parallel execution for improved throughput
+    \end{itemize}
+    \begin{center}
+        \includegraphics[width=0.9\linewidth]{implement.pdf}
+    \end{center}
 }
+
+%
+\headerbox{\bf\color{blue} Experiments \& Results}{name=results,column=2,below=homcache,span=4}{
+    \begin{minipage}[t]{0.48\textwidth}
+        \vspace{0pt} % This forces proper top alignment
+        \centering
+        \includegraphics[width=0.95\textwidth]{end2end_q146.pdf}
+        {\small End-to-End Performance of TPC-H.}
+        \begin{itemize}
+            \item \textbf{\textit{End-to-end Improvements}}
+            \begin{itemize}[leftmargin=0em, itemindent=0em]
+                \item Overall system speedup: $200\text{--}9000\times$
+                \item GPU acceleration: $110\times$ boost
+                \item Cache-driven comparison: $2\text{--}87\times$ gain
+            \end{itemize}
+            \item \textbf{\textit{Efficient Cache Management}}
+            \begin{itemize}[leftmargin=0em, itemindent=0em]
+                \item DDE policy outperforms LRU by 14\%
+                \item DDE stabilizes within 15-20 seconds
+            \end{itemize}
+        \end{itemize}
+    \end{minipage}%
+    \hfill
+    \begin{minipage}[t]{0.48\textwidth}
+        \vspace{0pt} % This forces proper top alignment
+        \begin{minipage}{\textwidth}
+            \centering
+            \includegraphics[width=0.95\textwidth]{cache_uniform+noevict.pdf}
+            {\small The latency of \textit{HomComp} (FHC) with uniform distribution in different cache eviction strategies.}
+        \end{minipage}
+        \vspace{0.5em}
+        \begin{minipage}{\textwidth}
+            \centering
+            \includegraphics[width=0.95\textwidth]{cache_zipfian+noevict.pdf}
+            {\small The latency of \textit{HomComp} (FHC) with Zipfian distribution in different cache eviction strategies.}
+        \end{minipage}
+    \end{minipage}
+}
+
 \end{poster}
 \end{document}
